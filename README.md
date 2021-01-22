@@ -1,15 +1,15 @@
 
-**Startup**
+## **Startup**
 
 ```
 docker-compose up -d
 docker-compose exec web rails db:create db:migrate db:seed
 ```
 
-**API**
-# Rest
+## **API**
+#### Rest
 
-# GraphQL
+#### GraphQL
 
 **Rails version:** 6.1
 

@@ -9,7 +9,12 @@
 #   inflect.irregular 'person', 'people'
 #   inflect.uncountable %w( fish sheep )
 # end
-
+Rails.autoloaders.each do |autoloader|
+  autoloader.inflector = Zeitwerk::Inflector.new
+  autoloader.inflector.inflect(
+    'graphiql' => 'GraphiQL'
+  )
+end
 # These inflection rules are supported but not enabled by default:
 # ActiveSupport::Inflector.inflections(:en) do |inflect|
 #   inflect.acronym 'RESTful'

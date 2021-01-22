@@ -1,11 +1,11 @@
 FactoryBot.define do
-  service_array = ["Test Service", "Test Service Two"]
-  letter = ["a", "b", "c", "d"]
-factory :random_question, class: Question do
-    question { Faker::Lorem.question }
-    answer { Faker::Lorem.sentence }
-    service { service_array.sample }
-    number { Faker::Number.between(1, 2) }
-    letter { letter.sample }
+  factory :user do
+    # Use sequence to make sure that the value is unique
+    sequence(:email) { |n| "user-#{n}@example.com" }
+  end
+
+  factory :item do
+    sequence(:title) { |n| "item-#{n}" }
+    user
   end
 end

@@ -1,49 +1,65 @@
-ARG NODE_VERSION
-ARG RUBY_VERSION
-ARG YARN_VERSION
+FROM ruby:2.7-buster
 
-#Node.js & Yarn
-FROM node:$NODE_VERSION as node
+# chroot to /app in the container.
+WORKDIR /app
 
-RUN apk add --no-cache bash curl && \
-  curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version $YARN_VERSION
+# We need the Gemfile quite early.
+COPY Gemfile /app/Gemfile
+COPY Gemfile.lock /app/Gemfile.lock
 
-#Ruby & Bundler & postgresql-client
-FROM ruby:$RUBY_VERSION
+# Install required dependencies.
+RUN apt-get update -qq
+RUN apt-get install -y build-essential \
+    nodejs \
+    postgresql-client \
+    curl \
+    nodejs \
+    gawk \
+    autoconf \
+    automake \
+    bison \
+    libffi-dev \
+    libgdbm-dev \
+    libncurses5-dev \
+    libsqlite3-dev \
+    libtool \
+    libyaml-dev \
+    pkg-config \
+    sqlite3 \
+    zlib1g-dev \
+    libgmp-dev \
+    libreadline-dev \
+    libssl-dev
 
-COPY --from=node /usr/local/bin/node /usr/local/bin/node
-COPY --from=node /opt/yarn-* /opt/yarn
-RUN ln -fs /opt/yarn/bin/yarn /usr/local/bin/yarn
+# Developers are ultimately gonna install these anyway.
+RUN apt-get install -y nano \
+    vim \
+    wget
 
-ENV ROOT=/app \
-  LANG=ja_JP.UTF-8 \
-  TZ=Asia/Tokyo
+# Install rails.
+RUN gem install rails -v 6.1.0
 
-WORKDIR ${ROOT}
+# Debug...
+RUN ruby -v
 
-# Packages
-RUN apk update && \
-  apk upgrade && \
-  apk add --no-cache \
-  gcc \
-  g++ \
-  libc-dev \
-  libxml2-dev \
-  linux-headers \
-  make \
-  postgresql \
-  postgresql-dev \
-  tzdata \
-  less \
-  git && \
-  apk add --virtual build-packs --no-cache \
-  build-base \
-  curl-dev
+# Install Bundler fixed to 2.2.1
+# Apparently it can mimick projects that need bundler v1.
+# @see https://bundler.io/blog/2019/01/04/an-update-on-the-bundler-2-release.html
+RUN gem install bundler:2.2.1
 
-COPY Gemfile ${ROOT}
-COPY Gemfile.lock ${ROOT}
+# Install from Gemfile.
+RUN bundle install
 
-RUN bundle install -j4 && \
-  apk del build-packs
+# Copy the project files to /app in the container.
+COPY . /app/
 
-COPY . ${ROOT}
+# Add a script to be executed every time the container starts.
+COPY entrypoint.sh /usr/bin/
+RUN chmod +x /usr/bin/entrypoint.sh
+ENTRYPOINT ["entrypoint.sh"]
+
+# Expose Rails on port 3000.
+EXPOSE 3000
+
+# Start the main process.
+CMD ["rails", "server", "-b", "0.0.0.0"]

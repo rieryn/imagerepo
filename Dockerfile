@@ -1,48 +1,49 @@
-# By default, use node 14.15.3 as the base image
-ARG IMAGE=node@sha256:bef791f512bb4c3051a1210d7fbd58206538f41eea9b966031abc8a7453308fe
+ARG NODE_VERSION
+ARG RUBY_VERSION
+ARG YARN_VERSION
 
-FROM $IMAGE
+#Node.js & Yarn
+FROM node:$NODE_VERSION as node
 
-# Define how verbose should npm install be
-ARG NPM_LOG_LEVEL=silent
-# Hide Open Collective message from install logs
-ENV OPENCOLLECTIVE_HIDE=1
-# Hiden NPM security message from install logs
-ENV NPM_CONFIG_AUDIT=false
-# Hide NPM funding message from install logs
-ENV NPM_CONFIG_FUND=false
+RUN apk add --no-cache bash curl && \
+  curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version $YARN_VERSION
 
-# Update npm to version 7
-RUN npm i -g npm@7.3.0
+#Ruby & Bundler & postgresql-client
+FROM ruby:$RUBY_VERSION
 
-# Set the working direcotry
-WORKDIR /app
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /opt/yarn-* /opt/yarn
+RUN ln -fs /opt/yarn/bin/yarn /usr/local/bin/yarn
 
-# Copy files specifiying dependencies
-COPY server/package.json server/package-lock.json ./server/
-COPY admin/package.json admin/package-lock.json ./admin/
+ENV ROOT=/app \
+  LANG=ja_JP.UTF-8 \
+  TZ=Asia/Tokyo
 
-# Install dependencies
-RUN cd server; npm ci --loglevel=$NPM_LOG_LEVEL;
-RUN cd admin; npm ci --loglevel=$NPM_LOG_LEVEL;
+WORKDIR ${ROOT}
 
-# Copy Prisma schema
-COPY server/prisma/schema.prisma ./server/prisma/
+# Packages
+RUN apk update && \
+  apk upgrade && \
+  apk add --no-cache \
+  gcc \
+  g++ \
+  libc-dev \
+  libxml2-dev \
+  linux-headers \
+  make \
+  postgresql \
+  postgresql-dev \
+  tzdata \
+  less \
+  git && \
+  apk add --virtual build-packs --no-cache \
+  build-base \
+  curl-dev
 
-# Generate Prisma client
-RUN cd server; npm run prisma:generate;
+COPY Gemfile ${ROOT}
+COPY Gemfile.lock ${ROOT}
 
-# Copy all the files
-COPY . .
+RUN bundle install -j4 && \
+  apk del build-packs
 
-# Build code
-RUN set -e; (cd server; npm run build) & (cd admin; npm run build)
-
-# Expose the port the server listens to
-EXPOSE 3000
-
-# Make server to serve admin built files
-ENV SERVE_STATIC_ROOT_PATH=admin/build
-
-# Run server
-CMD [ "node", "server/dist/main"]
+COPY . ${ROOT}

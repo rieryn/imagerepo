@@ -12,7 +12,7 @@ module Types
           null: false,
           description: "Returns a list of images"
     def images
-      Image.all
+      Image.all.with_attached_image_file
     end
   end
 end

@@ -7,4 +7,7 @@ module Types
       "Hello World"
     end
   end
+  class MutationType < Types::BaseObject
+    field :add_image_multipart, mutation: Mutations::AddImageMultipart
+  end
 end
